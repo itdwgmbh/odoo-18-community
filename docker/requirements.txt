@@ -1,0 +1,4 @@
+html2text
+python-pptx
+lxml_html_clean
+requests-oauthlib
