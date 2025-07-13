@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """
-Generate odoo.conf file from environment variables with sensible defaults.
-All configuration options can be overridden via environment variables using the pattern:
-ODOO_<KEY> for the [options] section.
-Only includes options relevant for containerized deployments.
+Generate odoo.conf file from environment variables.
+Configuration options use the pattern: ODOO_<KEY>
 """
 
 import os
 import sys
 from configparser import ConfigParser
 
-# Define Odoo configuration options relevant for containerized deployments
+# Default configuration for containerized Odoo
 ODOO_CONFIG = {
     'options': {
-        # Database settings
+        # Database connection
         'db_host': os.environ.get('DB_HOST', os.environ.get('DB_PORT_5432_TCP_ADDR', 'db')),
         'db_port': os.environ.get('DB_PORT', os.environ.get('DB_PORT_5432_TCP_PORT', '5432')),
         'db_user': os.environ.get('DB_USER', os.environ.get('DB_ENV_POSTGRES_USER', os.environ.get('POSTGRES_USER', 'odoo'))),
@@ -27,28 +25,28 @@ ODOO_CONFIG = {
         # Master password
         'admin_passwd': os.environ.get('ODOO_MASTER_PASSWORD', os.environ.get('ODOO_ADMIN_PASSWD', '')),
         
-        # Addons and data paths - fixed paths for container
+        # Module and data paths
         'addons_path': os.environ.get('ODOO_ADDONS_PATH', '/opt/odoo/src/addons,/mnt/extra-addons,/opt/odoo-customer-addons'),
         'data_dir': os.environ.get('ODOO_DATA_DIR', '/var/lib/odoo'),
         
         # Server configuration
         'proxy_mode': os.environ.get('ODOO_PROXY_MODE', 'True'),
         
-        # Worker configuration
+        # Worker processes
         'workers': os.environ.get('ODOO_WORKERS', '4'),
         'max_cron_threads': os.environ.get('ODOO_MAX_CRON_THREADS', '2'),
         
-        # Memory limits (in bytes)
+        # Memory limits
         'limit_memory_hard': os.environ.get('ODOO_LIMIT_MEMORY_HARD', '4294967296'),  # 4GB
         'limit_memory_soft': os.environ.get('ODOO_LIMIT_MEMORY_SOFT', '3221225472'),  # 3GB
         'limit_request': os.environ.get('ODOO_LIMIT_REQUEST', '8192'),
         
-        # Time limits (in seconds)
+        # Request timeouts
         'limit_time_cpu': os.environ.get('ODOO_LIMIT_TIME_CPU', '600'),
         'limit_time_real': os.environ.get('ODOO_LIMIT_TIME_REAL', '1200'),
         'limit_time_real_cron': os.environ.get('ODOO_LIMIT_TIME_REAL_CRON', '3600'),
         
-        # Logging configuration - stdout for containers
+        # Logging
         'log_handler': os.environ.get('ODOO_LOG_HANDLER', "['werkzeug:CRITICAL','odoo:WARNING']"),
         'log_level': os.environ.get('ODOO_LOG_LEVEL', 'info'),
         'log_db': os.environ.get('ODOO_LOG_DB', 'False'),
@@ -62,14 +60,14 @@ ODOO_CONFIG = {
         'smtp_user': os.environ.get('ODOO_SMTP_USER', ''),
         'smtp_password': os.environ.get('ODOO_SMTP_PASSWORD', ''),
         
-        # Security options
+        # Security
         'list_db': os.environ.get('ODOO_LIST_DB', 'True'),
         
-        # Performance options
+        # Performance
         'unaccent': os.environ.get('ODOO_UNACCENT', 'True'),
         'without_demo': os.environ.get('ODOO_WITHOUT_DEMO', 'all'),
         
-        # Server ports - fixed for container
+        # Network ports
         'xmlrpc': os.environ.get('ODOO_XMLRPC', 'True'),
         'xmlrpc_port': os.environ.get('ODOO_XMLRPC_PORT', '8069'),
         'gevent_port': os.environ.get('ODOO_GEVENT_PORT', '8072'),
@@ -77,7 +75,7 @@ ODOO_CONFIG = {
 }
 
 def str_to_bool(value):
-    """Convert string representation to boolean."""
+    """Convert string to boolean."""
     if isinstance(value, bool):
         return value
     if isinstance(value, str):
@@ -85,39 +83,38 @@ def str_to_bool(value):
     return bool(value)
 
 def should_include_option(key, value):
-    """Determine if an option should be included in the config file."""
-    # Always include database connection parameters
+    """Check if option should be written to config."""
+    # Required database parameters
     if key in ['db_host', 'db_port', 'db_user', 'db_password']:
         return True
     
-    # Skip False values for optional parameters
+    # Skip empty or false values
     if value is False or value == 'False' or value == '':
         return False
     
     return True
 
 def generate_config(output_path='/etc/odoo/odoo.conf'):
-    """Generate odoo.conf file from environment variables."""
+    """Generate odoo.conf from environment variables."""
     config = ConfigParser()
     
-    # Process each section
+    # Build configuration from defaults and environment
     for section, options in ODOO_CONFIG.items():
         config.add_section(section)
         
         for key, default_value in options.items():
-            # Check for environment variable override
+            # Environment variable overrides default
             env_key = f'ODOO_{key.upper()}'
             value = os.environ.get(env_key, default_value)
             
-            # Only add to config if it should be included
             if should_include_option(key, value):
-                # Don't quote certain values that should remain unquoted
+                # Preserve list format for specific keys
                 if key in ['log_handler', 'demo', 'translate_modules'] and value.startswith('['):
                     config.set(section, key, value)
                 elif value not in [False, 'False', '']:
                     config.set(section, key, str(value))
     
-    # Check for any additional environment variables not in our defaults
+    # Process additional ODOO_ environment variables
     for env_var, env_value in os.environ.items():
         if env_var.startswith('ODOO_') and env_var not in ['ODOO_MASTER_PASSWORD']:
             parts = env_var[5:].lower().split('_', 1)
@@ -127,18 +124,18 @@ def generate_config(output_path='/etc/odoo/odoo.conf'):
                 if key not in config[section]:
                     config.set(section, key, env_value)
             elif len(parts) >= 1:
-                # Options section variable
+                # Default to options section
                 key = '_'.join(parts)
                 if key not in config['options']:
                     config.set('options', key, env_value)
     
-    # Write the configuration file
+    # Write configuration to file
     try:
         with open(output_path, 'w') as configfile:
             config.write(configfile)
         print(f"Successfully generated {output_path}")
         
-        # Print the generated config for debugging
+        # Debug mode output
         if os.environ.get('ODOO_CONFIG_DEBUG', 'False').lower() in ('true', '1', 'yes'):
             print("\nGenerated configuration:")
             with open(output_path, 'r') as f:
@@ -149,6 +146,6 @@ def generate_config(output_path='/etc/odoo/odoo.conf'):
         sys.exit(1)
 
 if __name__ == '__main__':
-    # Allow custom output path via command line argument
+    # Use provided path or default
     output_path = sys.argv[1] if len(sys.argv) > 1 else '/etc/odoo/odoo.conf'
     generate_config(output_path)
