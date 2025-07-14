@@ -38,6 +38,7 @@ jobs:
           # Delete all versions - we'll build a fresh one after this
           min-versions-to-keep: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true  # Continue if package doesn't exist
 
   build:
     runs-on: ${{ matrix.runner }}
