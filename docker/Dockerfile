@@ -1,5 +1,5 @@
 # Build stage for compiling Python packages
-FROM debian:bookworm-slim AS builder
+FROM debian:trixie-slim AS builder
 
 ENV LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive
 
@@ -30,7 +30,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
     --target=/opt/pip-packages -r /tmp/requirements.txt
 
 # Runtime stage
-FROM debian:bookworm-slim AS runtime
+FROM debian:trixie-slim AS runtime
 
 # Build arguments
 ARG TARGETARCH
@@ -47,17 +47,6 @@ ENV LANG=C.UTF-8 DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     ODOO_RC=/etc/odoo/odoo.conf \
     PYTHONPATH=/opt/pip-packages:/usr/lib/python3/dist-packages
-
-# Configure PostgreSQL APT repository for latest client tools
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends curl gnupg ca-certificates; \
-    mkdir -p /usr/share/keyrings; \
-    curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-        | gpg --dearmor -o /usr/share/keyrings/postgres.gpg; \
-    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/postgres.gpg] \
-          http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
-        > /etc/apt/sources.list.d/postgres.list
 
 # Runtime dependencies
 RUN apt-get update && \
@@ -100,9 +89,9 @@ RUN apt-get update && \
     python3-psycopg2 \
     python3-pydot \
     python3-pyldap \
-    python3-pypdf2 \
+    python3-pypdf \
     python3-qrcode \
-    python3-renderpm \
+    python3-rl-renderpm \
     python3-reportlab \
     python3-requests \
     python3-rjsmin \
@@ -121,6 +110,7 @@ RUN apt-get update && \
     python3-xlwt \
     python3-zeep \
     # System libraries
+    ca-certificates \
     curl \
     sassc \
     fontconfig \
@@ -133,7 +123,7 @@ RUN apt-get update && \
     libimagequant0 \
     libjpeg62-turbo \
     liblcms2-2 \
-    libldap-2.5-0 \
+    libldap2 \
     libmagic1 \
     libopenjp2-7 \
     libpng16-16 \

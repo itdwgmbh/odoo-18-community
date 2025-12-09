@@ -16,11 +16,13 @@ if [ "$(id -u)" = "0" ]; then
     
     # Ensure odoo user owns required directories
     chown odoo /etc/odoo/odoo.conf
-    chown -R odoo /mnt/extra-addons /var/lib/odoo /opt/odoo-customer-addons /tmp
+    chown -R odoo /mnt/extra-addons /var/lib/odoo /opt/odoo-customer-addons
 
-    # Create PostgreSQL authentication file
-    echo "${DB_HOST}:${DB_PORT}:*:${DB_USER}:${DB_PASSWORD}" > /root/.pgpass
-    chmod 600 /root/.pgpass
+    # Create PostgreSQL authentication file for odoo user
+    ODOO_HOME=$(getent passwd odoo | cut -d: -f6)
+    echo "${DB_HOST}:${DB_PORT}:*:${DB_USER}:${DB_PASSWORD}" > "${ODOO_HOME}/.pgpass"
+    chmod 600 "${ODOO_HOME}/.pgpass"
+    chown odoo:odoo "${ODOO_HOME}/.pgpass"
 
     # Re-execute as odoo user
     exec gosu odoo "$0" "$@"
@@ -78,5 +80,3 @@ case "$1" in
         # Pass through any other command
         exec "$@"
 esac
-
-exit 1

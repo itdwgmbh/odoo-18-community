@@ -74,14 +74,6 @@ ODOO_CONFIG = {
     }
 }
 
-def str_to_bool(value):
-    """Convert string to boolean."""
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, str):
-        return value.lower() in ('true', 'yes', '1', 'on')
-    return bool(value)
-
 def should_include_option(key, value):
     """Check if option should be written to config."""
     # Required database parameters
@@ -135,11 +127,18 @@ def generate_config(output_path='/etc/odoo/odoo.conf'):
             config.write(configfile)
         print(f"Successfully generated {output_path}")
         
-        # Debug mode output
+        # Debug mode output (with sensitive values masked)
         if os.environ.get('ODOO_CONFIG_DEBUG', 'False').lower() in ('true', '1', 'yes'):
-            print("\nGenerated configuration:")
+            print("\nGenerated configuration (sensitive values masked):")
+            sensitive_keys = ['password', 'passwd', 'secret', 'token', 'key']
             with open(output_path, 'r') as f:
-                print(f.read())
+                for line in f:
+                    # Mask lines containing sensitive keys
+                    if any(key in line.lower() for key in sensitive_keys) and '=' in line:
+                        key_part = line.split('=')[0]
+                        print(f"{key_part}= ********")
+                    else:
+                        print(line, end='')
                 
     except Exception as e:
         print(f"Error generating config file: {e}", file=sys.stderr)

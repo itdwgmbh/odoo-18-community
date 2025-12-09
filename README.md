@@ -8,11 +8,13 @@ Optimized Odoo 18 Community Docker image with dynamic configuration, multi-archi
 ## Features
 
 - **Odoo 18** installed from official GitHub source
+- **Python 3.13** on Debian Trixie (slim)
 - **Multi-architecture** support (amd64/arm64)
 - **Dynamic configuration** via environment variables
-- **Production-ready** with nginx and WebSocket support
+- **Production-ready** with WebSocket support
 - **Built-in health checks** for reliable deployments
-- **Automated builds** with retention policy (last 12 versions)
+- **Security scanning** with Trivy vulnerability detection
+- **Automated builds** with retention policy (last 3 versions)
 
 ## Quick Start
 
@@ -34,11 +36,6 @@ docker compose up -d
 # Access services
 # Odoo: http://odoo.localhost
 # Mail: http://mail.localhost
-```
-
-**Note**: Add to `/etc/hosts`:
-```
-127.0.0.1 odoo.localhost mail.localhost
 ```
 
 ## Basic Usage
