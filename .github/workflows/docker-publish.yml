@@ -20,33 +20,11 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  # Cleanup old images before building new ones, keeping last 3 for fallback
-  cleanup-before-build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    # Run on all events except pull requests (to avoid deleting images during PR testing)
-    if: github.event_name != 'pull_request'
-    steps:
-      - name: Delete old container versions
-        uses: actions/delete-package-versions@v5
-        with:
-          package-name: 'odoo-18-community'
-          package-type: 'container'
-          min-versions-to-keep: 3
-          token: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true  # Continue if package doesn't exist
-
   build:
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
-    # On scheduled runs, wait for cleanup to complete first
-    needs: [cleanup-before-build]
-    # Run immediately if not a scheduled run, or after cleanup if it is
-    if: always() && (needs.cleanup-before-build.result == 'success' || needs.cleanup-before-build.result == 'skipped')
     strategy:
       fail-fast: false
       matrix:
@@ -189,3 +167,22 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-results.sarif'
+
+  # Cleanup old images after successful build and scan, keeping enough for fallback
+  # Disabled: was causing issues with cached digest references in deployment systems
+  # cleanup:
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   needs: [scan]
+  #   if: github.event_name != 'pull_request'
+  #   steps:
+  #     - name: Delete old container versions
+  #       uses: actions/delete-package-versions@v5
+  #       with:
+  #         package-name: 'odoo-18-community'
+  #         package-type: 'container'
+  #         min-versions-to-keep: 10
+  #         token: ${{ secrets.GITHUB_TOKEN }}
+  #       continue-on-error: true
