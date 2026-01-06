@@ -90,7 +90,7 @@ jobs:
         run: echo "${{ steps.odoo.outputs.ODOO_VERSION }}" > ${{ runner.temp }}/odoo-version.txt
 
       - name: Upload Odoo version
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: odoo-version-${{ env.PLATFORM_PAIR }}
           path: ${{ runner.temp }}/odoo-version.txt
@@ -98,7 +98,7 @@ jobs:
           retention-days: 1
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: digests-${{ env.PLATFORM_PAIR }}
           path: ${{ runner.temp }}/digests/*
