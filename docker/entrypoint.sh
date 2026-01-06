@@ -1,12 +1,48 @@
 #!/bin/bash
 set -e
 
+# Function to read Docker secrets from files
+# Usage: file_env VAR_NAME [DEFAULT_VALUE]
+# If VAR_NAME_FILE is set and points to a readable file, read its contents into VAR_NAME
+# If VAR_NAME is already set, use that value (unless _FILE also exists, then _FILE wins)
+# Otherwise, use DEFAULT_VALUE
+file_env() {
+    local var="$1"
+    local fileVar="${var}_FILE"
+    local default="${2:-}"
+    local val="$default"
+
+    # Check if the variable is already set
+    if [ "${!var:-}" ]; then
+        val="${!var}"
+    fi
+
+    # _FILE variant takes precedence
+    if [ "${!fileVar:-}" ]; then
+        if [ -r "${!fileVar}" ]; then
+            val="$(< "${!fileVar}")"
+        else
+            echo >&2 "Error: Secret file '${!fileVar}' specified by ${fileVar} is not readable"
+            exit 1
+        fi
+    fi
+
+    export "$var"="$val"
+    unset "$fileVar"
+}
+
 # Database connection parameters with fallback values
 : ${DB_HOST:=${DB_PORT_5432_TCP_ADDR:='db'}}
 : ${DB_PORT:=${DB_PORT_5432_TCP_PORT:=5432}}
 : ${DB_USER:=${DB_ENV_POSTGRES_USER:=${POSTGRES_USER:='odoo'}}}
+
+# Password variables with Docker secrets support (_FILE suffix pattern)
+# Legacy fallback chain preserved for backward compatibility
 : ${DB_PASSWORD:=${DB_ENV_POSTGRES_PASSWORD:=${POSTGRES_PASSWORD:='odoo'}}}
-: ${ODOO_MASTER_PASSWORD:=''}
+file_env DB_PASSWORD "$DB_PASSWORD"
+
+file_env ODOO_MASTER_PASSWORD ''
+file_env ODOO_SMTP_PASSWORD ''
 
 # Initial setup when running as root
 if [ "$(id -u)" = "0" ]; then
@@ -26,11 +62,6 @@ if [ "$(id -u)" = "0" ]; then
 
     # Re-execute as odoo user
     exec gosu odoo "$0" "$@"
-fi
-
-# Handle password file if provided
-if [ -v PASSWORD_FILE ]; then
-    PASSWORD="$(< $PASSWORD_FILE)"
 fi
 
 # Build database connection arguments, preferring config file values

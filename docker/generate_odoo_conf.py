@@ -8,6 +8,44 @@ import os
 import sys
 from configparser import ConfigParser
 
+
+def get_env_or_file(var_name, default=''):
+    """
+    Get environment variable value, supporting Docker secrets via _FILE suffix.
+
+    Precedence:
+    1. VAR_NAME_FILE - if set and file is readable, use file contents
+    2. VAR_NAME - if set, use direct value
+    3. default - fallback value
+
+    Args:
+        var_name: Name of the environment variable (without _FILE suffix)
+        default: Default value if neither VAR_NAME nor VAR_NAME_FILE is set
+
+    Returns:
+        The resolved value
+
+    Raises:
+        SystemExit: If _FILE is specified but file cannot be read
+    """
+    file_var = f"{var_name}_FILE"
+
+    # Check for _FILE variant first (takes precedence)
+    file_path = os.environ.get(file_var)
+    if file_path:
+        try:
+            with open(file_path, 'r') as f:
+                # Strip trailing newline but preserve internal whitespace
+                return f.read().rstrip('\n\r')
+        except IOError as e:
+            print(f"Error: Cannot read secret file '{file_path}' specified by {file_var}: {e}",
+                  file=sys.stderr)
+            sys.exit(1)
+
+    # Fall back to direct environment variable
+    return os.environ.get(var_name, default)
+
+
 # Default configuration for containerized Odoo
 ODOO_CONFIG = {
     'options': {
@@ -15,7 +53,7 @@ ODOO_CONFIG = {
         'db_host': os.environ.get('DB_HOST', os.environ.get('DB_PORT_5432_TCP_ADDR', 'db')),
         'db_port': os.environ.get('DB_PORT', os.environ.get('DB_PORT_5432_TCP_PORT', '5432')),
         'db_user': os.environ.get('DB_USER', os.environ.get('DB_ENV_POSTGRES_USER', os.environ.get('POSTGRES_USER', 'odoo'))),
-        'db_password': os.environ.get('DB_PASSWORD', os.environ.get('DB_ENV_POSTGRES_PASSWORD', os.environ.get('POSTGRES_PASSWORD', 'odoo'))),
+        'db_password': get_env_or_file('DB_PASSWORD', os.environ.get('DB_ENV_POSTGRES_PASSWORD', os.environ.get('POSTGRES_PASSWORD', 'odoo'))),
         'db_name': os.environ.get('ODOO_DB_NAME', ''),
         'db_template': os.environ.get('ODOO_DB_TEMPLATE', 'template1'),
         'dbfilter': os.environ.get('ODOO_DBFILTER', '.*'),
@@ -23,7 +61,7 @@ ODOO_CONFIG = {
         'db_sslmode': os.environ.get('ODOO_DB_SSLMODE', 'prefer'),
         
         # Master password
-        'admin_passwd': os.environ.get('ODOO_MASTER_PASSWORD', os.environ.get('ODOO_ADMIN_PASSWD', '')),
+        'admin_passwd': get_env_or_file('ODOO_MASTER_PASSWORD', os.environ.get('ODOO_ADMIN_PASSWD', '')),
         
         # Module and data paths
         'addons_path': os.environ.get('ODOO_ADDONS_PATH', '/opt/odoo/src/addons,/mnt/extra-addons,/opt/odoo-customer-addons'),
@@ -58,7 +96,7 @@ ODOO_CONFIG = {
         'smtp_port': os.environ.get('ODOO_SMTP_PORT', '1025'),
         'smtp_ssl': os.environ.get('ODOO_SMTP_SSL', 'False'),
         'smtp_user': os.environ.get('ODOO_SMTP_USER', ''),
-        'smtp_password': os.environ.get('ODOO_SMTP_PASSWORD', ''),
+        'smtp_password': get_env_or_file('ODOO_SMTP_PASSWORD', ''),
         
         # Security
         'list_db': os.environ.get('ODOO_LIST_DB', 'True'),

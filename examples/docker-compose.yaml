@@ -1,5 +1,7 @@
 # Full-featured docker-compose with Nginx reverse proxy, WebSocket support, and mail server
 # Copy this file and .env.example to your project directory to get started
+#
+# For production deployments with Docker secrets, see docker-compose-secrets.yaml
 
 services:
   nginx:
@@ -23,6 +25,9 @@ services:
       - DB_USER=${DB_USER:-odoo}
       - DB_PASSWORD=${DB_PASSWORD:-odoo}
       - ODOO_MASTER_PASSWORD=${ODOO_MASTER_PASSWORD:-changeme}
+      # For production, use Docker secrets instead of plain env vars:
+      # - DB_PASSWORD_FILE=/run/secrets/db_password
+      # - ODOO_MASTER_PASSWORD_FILE=/run/secrets/odoo_master_password
       # Important: Enable proxy mode when behind nginx
       - ODOO_PROXY_MODE=True
     volumes:
