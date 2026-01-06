@@ -35,9 +35,11 @@ FROM debian:trixie-slim AS runtime
 # Build arguments
 ARG TARGETARCH
 ARG BUILD_DATE
+ARG ODOO_VERSION
 # Metadata labels
 LABEL org.opencontainers.image.title="Odoo 18 Community" \
       org.opencontainers.image.description="Optimized Odoo 18 Community Edition" \
+      org.opencontainers.image.version="${ODOO_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.authors="IT-DW GmbH <info@it-dw.com>" \
       org.opencontainers.image.source="https://github.com/itdwgmbh/odoo-18-community"

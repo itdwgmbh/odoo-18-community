@@ -39,6 +39,13 @@ jobs:
           platform=${{ matrix.platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
+      - name: Fetch Odoo version from nightly
+        id: odoo
+        run: |
+          ODOO_VERSION=$(curl -sfL https://nightly.odoo.com/18.0/nightly/deb/odoo_18.0.latest_amd64.changes | grep -E '^Version:' | awk '{print $2}')
+          echo "ODOO_VERSION=${ODOO_VERSION}" >> $GITHUB_OUTPUT
+          echo "Odoo version: ${ODOO_VERSION}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -67,7 +74,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+            BUILD_DATE=${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
+            ODOO_VERSION=${{ steps.odoo.outputs.ODOO_VERSION }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
@@ -77,6 +85,17 @@ jobs:
           mkdir -p ${{ runner.temp }}/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Save Odoo version
+        run: echo "${{ steps.odoo.outputs.ODOO_VERSION }}" > ${{ runner.temp }}/odoo-version.txt
+
+      - name: Upload Odoo version
+        uses: actions/upload-artifact@v4
+        with:
+          name: odoo-version-${{ env.PLATFORM_PAIR }}
+          path: ${{ runner.temp }}/odoo-version.txt
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload digest
         uses: actions/upload-artifact@v4
@@ -102,6 +121,20 @@ jobs:
           pattern: digests-*
           merge-multiple: true
 
+      - name: Download Odoo version
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/odoo-version
+          pattern: odoo-version-*
+          merge-multiple: true
+
+      - name: Read Odoo version
+        id: odoo
+        run: |
+          ODOO_VERSION=$(cat ${{ runner.temp }}/odoo-version/odoo-version.txt)
+          echo "ODOO_VERSION=${ODOO_VERSION}" >> $GITHUB_OUTPUT
+          echo "Odoo version: ${ODOO_VERSION}"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3.0.0
 
@@ -112,12 +145,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate date tags
-        id: date
-        run: |
-          echo "TIMESTAMP=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_OUTPUT
-          echo "YEARMONTH=$(date +'%Y-%m')" >> $GITHUB_OUTPUT
-
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5.0.0
@@ -125,8 +152,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=${{ steps.date.outputs.TIMESTAMP }}
-            type=raw,value=${{ steps.date.outputs.YEARMONTH }}
+            type=raw,value=${{ steps.odoo.outputs.ODOO_VERSION }}
             type=sha
 
       - name: Create manifest list and push
