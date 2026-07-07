@@ -5,7 +5,7 @@ Multi-arch (amd64/arm64) Docker image for Odoo 18 Community Edition, built on De
 ## Quick Start
 
 ```bash
-docker pull ghcr.io/itdwgmbh/odoo-18:latest
+docker pull ghcr.io/itdwgmbh/odoo-18-community:latest
 ```
 
 ```bash
@@ -13,7 +13,7 @@ docker run -d \
   -p 8069:8069 \
   -e DB_HOST=your-postgres-host \
   -e DB_PASSWORD=your-password \
-  ghcr.io/itdwgmbh/odoo-18:latest
+  ghcr.io/itdwgmbh/odoo-18-community:latest
 ```
 
 Or use `docker compose up` to start Odoo with PostgreSQL locally.
