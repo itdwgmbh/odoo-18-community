@@ -49,6 +49,7 @@ COPY vendor/wkhtmltox_${TARGETARCH}.deb /tmp/wkhtmltox.deb
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    age \
     python3 \
     python3-asn1crypto \
     python3-babel \
